@@ -39,18 +39,28 @@ const crawler = new PuppeteerCrawler({
         const pageUrl = page.url();
 
         const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}/g;
-        const emails = (pageContent.match(emailRegex) || [])
-            // Only allow emails at the input domain
-            .filter(email => email.toLowerCase().endsWith('@' + domain.toLowerCase()));
+        const allEmails = pageContent.match(emailRegex) || [];
+        log.info(`Found ${allEmails.length} email(s) on this page: ${allEmails.join(', ')}`);
+        const domainEmails = allEmails.filter(email => email.toLowerCase().endsWith('@' + domain.toLowerCase()));
+        const skippedEmails = allEmails.filter(email => !email.toLowerCase().endsWith('@' + domain.toLowerCase()));
+        if (skippedEmails.length > 0) {
+            log.info(`Skipped ${skippedEmails.length} email(s) not matching @${domain}: ${skippedEmails.join(', ')}`);
+        }
+        log.info(`Retained ${domainEmails.length} email(s) matching @${domain}: ${domainEmails.join(', ')}`);
 
         const normalizedText = text.toLowerCase();
         const containsName = nameParts.every(part => normalizedText.includes(part));
+        log.info(`Does page contain all name parts (${nameParts.join(', ')}): ${containsName}`);
 
-        if (containsName && emails.length > 0) {
-            emailsFound.push(...emails);
-        } else if (emails.length > 0 && emailsFound.length === 0) {
+        if (containsName && domainEmails.length > 0) {
+            log.info(`Adding ${domainEmails.length} email(s) because name was found.`);
+            emailsFound.push(...domainEmails);
+        } else if (domainEmails.length > 0 && emailsFound.length === 0) {
             // Fallback: store general emails if no personal ones found
-            emailsFound.push(...emails);
+            log.info(`Adding ${domainEmails.length} fallback email(s) because no personal email found yet.`);
+            emailsFound.push(...domainEmails);
+        } else {
+            log.info('No emails added from this page.');
         }
 
         // Extract all links with both href and visible text

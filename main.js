@@ -31,7 +31,8 @@ function isAllowedLink(url, text) {
 
 
 const crawler = new PuppeteerCrawler({
-    navigationTimeoutSecs: 20, // Fail faster on slow/unresponsive sites
+    navigationTimeoutSecs: 10, // Fail even faster on slow/unresponsive sites
+    maxRequestRetries: 0, // Only try each homepage variant once
     requestHandler: async ({ page, request, enqueueLinks, log }) => {
         log.info(`Visiting ${request.url}`);
 
@@ -108,7 +109,7 @@ const crawler = new PuppeteerCrawler({
             }]);
         } else {
             log.error('All homepage fallbacks failed. Aborting early to save cost.');
-            // Optionally, you could call process.exit(1) or set a global flag to abort the crawl.
+            process.exit(1); // Abort the actor immediately
         }
     },
     maxConcurrency: 2,

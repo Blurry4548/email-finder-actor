@@ -31,6 +31,7 @@ function isAllowedLink(url, text) {
 
 
 const crawler = new PuppeteerCrawler({
+    navigationTimeoutSecs: 20, // Fail faster on slow/unresponsive sites
     requestHandler: async ({ page, request, enqueueLinks, log }) => {
         log.info(`Visiting ${request.url}`);
 
@@ -81,6 +82,9 @@ const crawler = new PuppeteerCrawler({
         }
     },
     maxRequestsPerCrawl: 10,
+    failedRequestHandler: async ({ request, error, log }) => {
+        log.error(`Request to ${request.url} failed: ${error.message}`);
+    },
     maxConcurrency: 2,
     headless: true,
     launchContext: {

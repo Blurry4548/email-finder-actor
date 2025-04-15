@@ -1,0 +1,11 @@
+{
+  "name": "email-finder-actor",
+  "version": "0.1.0",
+  "scripts": {
+    "start": "node main.js"
+  },
+  "dependencies": {
+    "apify": "^3.0.0",
+    "crawlee": "^3.6.0"
+  }
+}

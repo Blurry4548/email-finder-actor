@@ -1,3 +1,4 @@
+// Trigger rebuild: ensure Apify uses correct Docker template
 import { Actor } from 'apify';
 import { PuppeteerCrawler, log, Dataset } from 'crawlee';
 

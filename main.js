@@ -12,17 +12,23 @@ const nameParts = fullName.toLowerCase().split(' ');
 
 const emailsFound = [];
 
-const PRIORITY_KEYWORDS = [
+const GOOD_LINK_KEYWORDS = [
     'staff', 'team', 'leadership', 'people', 'directory', 'about', 'contact', 'faculty', 'our-team', 'employees', 'personnel', 'who-we-are'
 ];
+const BAD_LINK_KEYWORDS = [
+    'blog', 'news', 'donate', 'service', 'services', 'event', 'events', 'career', 'careers', 'volunteer', 'give', 'program', 'calendar', 'story', 'stories', 'press', 'media', 'resources', 'covid', 'policy', 'privacy', 'terms', 'faq', 'testimonials', 'partners', 'board', 'history', 'mission', 'vision'
+];
 
-function isHighPriority(url, text) {
+function isAllowedLink(url, text) {
     const lcUrl = url.toLowerCase();
     const lcText = (text || '').toLowerCase();
-    return PRIORITY_KEYWORDS.some(kw =>
-        lcUrl.includes(kw) || lcText.includes(kw)
-    );
+    // Must match at least one GOOD keyword
+    const matchesGood = GOOD_LINK_KEYWORDS.some(kw => lcUrl.includes(kw) || lcText.includes(kw));
+    // Must not match any BAD keyword
+    const matchesBad = BAD_LINK_KEYWORDS.some(kw => lcUrl.includes(kw) || lcText.includes(kw));
+    return matchesGood && !matchesBad;
 }
+
 
 const crawler = new PuppeteerCrawler({
     requestHandler: async ({ page, request, enqueueLinks, log }) => {
@@ -33,7 +39,9 @@ const crawler = new PuppeteerCrawler({
         const pageUrl = page.url();
 
         const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}/g;
-        const emails = pageContent.match(emailRegex) || [];
+        const emails = (pageContent.match(emailRegex) || [])
+            // Only allow emails at the input domain
+            .filter(email => email.toLowerCase().endsWith('@' + domain.toLowerCase()));
 
         const normalizedText = text.toLowerCase();
         const containsName = nameParts.every(part => normalizedText.includes(part));
@@ -50,23 +58,15 @@ const crawler = new PuppeteerCrawler({
         const uniqueLinks = Array.from(new Set(links.map(l => l.href)))
             .map(href => links.find(l => l.href === href));
 
-        // Partition links by priority
-        const highPriorityLinks = uniqueLinks.filter(l =>
+        // Only allow links that match good keywords and not bad ones
+        const allowedLinks = uniqueLinks.filter(l =>
             l.href.includes(domain) &&
             !l.href.includes('mailto') &&
-            isHighPriority(l.href, l.text)
-        );
-        const normalLinks = uniqueLinks.filter(l =>
-            l.href.includes(domain) &&
-            !l.href.includes('mailto') &&
-            !isHighPriority(l.href, l.text)
+            isAllowedLink(l.href, l.text)
         );
 
-        // Add high-priority links first, then normal links
-        for (const link of highPriorityLinks) {
-            await crawler.addRequests([link.href]);
-        }
-        for (const link of normalLinks) {
+        // Only add allowed links
+        for (const link of allowedLinks) {
             await crawler.addRequests([link.href]);
         }
     },

@@ -7,7 +7,6 @@
   "type": "module",
   "dependencies": {
     "apify": "^3.0.0",
-    "crawlee": "^3.6.0",
-    "puppeteer": "^21.11.0"
+    "crawlee": "^3.6.0"
   }
 }

@@ -82,8 +82,34 @@ const crawler = new PuppeteerCrawler({
         }
     },
     maxRequestsPerCrawl: 10,
-    failedRequestHandler: async ({ request, error, log }) => {
+    failedRequestHandler: async ({ request, error, log, crawler }) => {
         log.error(`Request to ${request.url} failed: ${error.message}`);
+        // Only apply fallback for the initial homepage request
+        const urlObj = new URL(request.url);
+        const isRoot = urlObj.pathname === '/' || urlObj.pathname === '';
+        const isHttps = urlObj.protocol === 'https:';
+        const isNoSubdomain = urlObj.hostname.split('.').length === 2;
+        // Only try fallback if it's the first/root request and no subdomain (e.g. parisisd.net)
+        if (isRoot && isHttps && isNoSubdomain && !request.userData.fallbackTried) {
+            // Try https://www.domain
+            const wwwUrl = urlObj.origin.replace('://', '://www.') + '/';
+            log.info(`Retrying with www subdomain: ${wwwUrl}`);
+            await crawler.addRequests([{
+                url: wwwUrl,
+                userData: { fallbackTried: true }
+            }]);
+        } else if (isRoot && isHttps && urlObj.hostname.startsWith('www.') && !request.userData.httpTried) {
+            // Try http://www.domain
+            const httpUrl = 'http://' + urlObj.hostname + '/';
+            log.info(`Retrying with http: ${httpUrl}`);
+            await crawler.addRequests([{
+                url: httpUrl,
+                userData: { httpTried: true }
+            }]);
+        } else {
+            log.error('All homepage fallbacks failed. Aborting early to save cost.');
+            // Optionally, you could call process.exit(1) or set a global flag to abort the crawl.
+        }
     },
     maxConcurrency: 2,
     headless: true,
